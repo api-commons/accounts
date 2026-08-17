@@ -70,4 +70,7 @@ OpenAPI, this repository, the ruleset, and the documentation.
 
 ## License
 
-[Apache-2.0](LICENSE).
+The artifacts in this repository — the schemas, examples, and API descriptions — are
+licensed **[CC BY-NC-SA 4.0](LICENSE)** (Attribution–NonCommercial–ShareAlike).
+
+API Commons licenses **artifacts** under CC BY-NC-SA 4.0 and **code** under Apache-2.0.
