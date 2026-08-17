@@ -1,0 +1,55 @@
+aid: base-accounts
+name: Accounts
+type: Base
+description: |-
+  A base Accounts API for the API Commons — a starting point you copy into your own
+  service rather than a hosted API. Partial updates use RFC 7396 JSON Merge Patch, so a client changes one field without sending the whole account back.
+
+  Errors are RFC 9457 problem details, identical across every API Commons base, and
+  checked in CI by the API Commons Problem Details Spectral ruleset.
+image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+tags:
+- Application Programming Interface
+- API
+- Accounts
+- Onboarding
+- Users
+created: '2026-08-17'
+modified: '2026-08-17'
+url: https://raw.githubusercontent.com/api-commons/accounts/main/apis.yml
+specificationVersion: '0.20'
+apis:
+- aid: base-accounts:accounts
+  name: Accounts API
+  description: A base Accounts API — the account lifecycle every service reinvents, described once.
+  image: https://kinlane-productions.s3.amazonaws.com/apis-json/apis-json-logo.jpg
+  humanURL: https://apicommons.org/base/accounts/
+  baseURL: https://api.example.com
+  tags:
+  - API
+  - Application Programming Interface
+  - Accounts
+  - Onboarding
+  - Users
+  properties:
+  - type: OpenAPI
+    url: https://raw.githubusercontent.com/api-commons/accounts/main/openapi.yml
+  - type: GitHubRepository
+    url: https://github.com/api-commons/accounts
+  - type: Documentation
+    url: https://apicommons.org/base/accounts/
+  - type: SpectralRules
+    url: https://raw.githubusercontent.com/api-commons/spectral-problem-details-ruleset/main/problem-details.yaml
+  - type: License
+    url: https://github.com/api-commons/accounts/blob/main/LICENSE
+  contact:
+  - FN: API Evangelist
+    email: info@apievangelist.com
+common:
+- type: Commons
+  url: https://apicommons.org/base/accounts/
+- type: Discussion
+  url: https://github.com/orgs/api-commons/discussions
+maintainers:
+- FN: Kin Lane
+  email: info@apievangelist.com

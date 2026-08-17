@@ -1,0 +1,568 @@
+openapi: 3.1.0
+info:
+  title: Accounts API
+  summary: A base Accounts API every service can start from, instead of reinventing one.
+  description: |-
+    We need an account for everything these days. Every new service reinvents the same
+    account resource, the same onboarding flow, and the same set of errors — and each one
+    is slightly different, which is what makes integration expensive.
+
+    This is a **base** Accounts API for the [API Commons](https://apicommons.org): a
+    starting point you copy into your own service rather than a hosted API. It covers the
+    account lifecycle and nothing else, so it stays useful across very different products.
+
+    Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details,
+    identical to every other API Commons base, and checked in CI by the
+    [Problem Details ruleset](https://github.com/api-commons/spectral-problem-details-ruleset).
+    Partial updates use [RFC 7396](https://www.rfc-editor.org/rfc/rfc7396) JSON Merge
+    Patch, so a client changes one field without sending the whole account back.
+  version: 1.0.0
+  contact:
+    name: API Evangelist
+    url: https://apievangelist.com
+    email: info@apievangelist.com
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+
+externalDocs:
+  description: The Accounts base on API Commons
+  url: https://apicommons.org/base/accounts/
+
+tags:
+  - name: Accounts
+    description: Creating, reading, updating, and closing accounts.
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /accounts:
+
+    get:
+      summary: List accounts
+      description: List the accounts the caller can see, newest first.
+      operationId: listAccounts
+      tags: [Accounts]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - name: status
+          in: query
+          description: Filter by account status.
+          required: false
+          schema:
+            $ref: '#/components/schemas/AccountStatus'
+      responses:
+        '200':
+          description: A page of accounts.
+          headers:
+            RateLimit:
+              $ref: '#/components/headers/RateLimit'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create an account
+      description: Create a new account. The name and email are the only required fields.
+      operationId: createAccount
+      tags: [Accounts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountCreate'
+      responses:
+        '201':
+          description: The account was created.
+          headers:
+            Location:
+              description: The URL of the newly created account.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accounts/{accountId}:
+
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+
+    get:
+      summary: Get an account
+      description: >-
+        Retrieve a single account. The `ETag` on the response is what you send back in
+        `If-Match` when you update it.
+      operationId: getAccount
+      tags: [Accounts]
+      responses:
+        '200':
+          description: The account.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: Update an account
+      description: >-
+        Partially update an account with an RFC 7396 JSON Merge Patch. Members present
+        are replaced, members set to null are removed, and absent members are left alone.
+        Send `If-Match` with the ETag from a prior read to avoid clobbering a concurrent
+        write.
+      operationId: updateAccount
+      tags: [Accounts]
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/AccountPatch'
+      responses:
+        '200':
+          description: The updated account.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Close an account
+      description: >-
+        Close the account. Closing is not the same as erasing — see the data-retention
+        policy of whatever service adopts this base.
+      operationId: closeAccount
+      tags: [Accounts]
+      responses:
+        '204':
+          description: The account was closed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A bearer token obtained from your identity provider.
+
+  parameters:
+
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      description: The account's unique identifier.
+      schema:
+        type: string
+      example: acct_01HZX
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of results to return.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 25
+
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from a previous response's `next` value.
+      schema:
+        type: string
+
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: >-
+        The ETag from a prior read. Conditions the write on the account not having
+        changed since, per RFC 9110 Section 13.1.1.
+      schema:
+        type: string
+
+  schemas:
+
+    AccountStatus:
+      type: string
+      description: Where the account is in its lifecycle.
+      enum: [pending, active, suspended, closed]
+
+    Account:
+      type: object
+      description: An account.
+      required: [id, name, email, status, created]
+      properties:
+        id:
+          type: string
+          description: Unique, opaque, stable identifier.
+          example: acct_01HZX
+        name:
+          type: string
+          description: Display name for the account holder or organization.
+          example: Ada Lovelace
+        email:
+          type: string
+          format: email
+          description: Primary contact address.
+          example: ada@example.com
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        created:
+          type: string
+          format: date-time
+          description: When the account was created.
+        modified:
+          type: string
+          format: date-time
+          description: When the account was last changed.
+
+    AccountCreate:
+      type: object
+      description: The fields accepted when creating an account.
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          example: Ada Lovelace
+        email:
+          type: string
+          format: email
+          example: ada@example.com
+
+    AccountPatch:
+      type: object
+      description: >-
+        An RFC 7396 merge patch over an account. No member is required — send only what
+        changes. A member set to null is REMOVED, so do not serialize absent optional
+        fields as null.
+      properties:
+        name:
+          type: [string, 'null']
+        email:
+          type: [string, 'null']
+          format: email
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+
+    AccountList:
+      type: object
+      description: A page of accounts.
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Account'
+        next:
+          type: [string, 'null']
+          description: Cursor for the next page, or null when this is the last page.
+
+  # ---------------------------------------------------------------------------
+  # RFC 9457 Problem Details.
+  #
+  # Identical in every API Commons base, and lifted from
+  # https://github.com/api-commons/problem-details-for-http-apis so that every
+  # base errors the same way. Conformance is checked in CI by
+  # https://github.com/api-commons/spectral-problem-details-ruleset
+  #
+  # The `urn:ietf:rfc:7807` XML namespace below is CORRECT and deliberate — RFC
+  # 9457 Appendix B retained it for backward compatibility. Do not "fix" it.
+  # ---------------------------------------------------------------------------
+
+    Problem:
+      type: object
+      description: >-
+        A problem detail object, per RFC 9457 Section 3.1. Every member is
+        optional. `additionalProperties` is deliberately left unset so problem
+        types can carry extension members, as Section 3.2 requires.
+      xml:
+        name: problem
+        namespace: urn:ietf:rfc:7807
+      properties:
+        type:
+          type: string
+          format: uri
+          description: A URI reference identifying the problem type. Defaults to about:blank.
+          example: https://example.com/probs/out-of-credit
+        title:
+          type: string
+          description: A short, human-readable summary of the problem type.
+          example: You do not have enough credit.
+        status:
+          type: integer
+          description: >-
+            The HTTP status code generated by the origin server. Advisory — the
+            real status code is the one on the response.
+          example: 403
+        detail:
+          type: string
+          description: >-
+            A human-readable explanation specific to this occurrence, focused on
+            helping the client correct the problem rather than on debugging.
+          example: Your current balance is 30, but that costs 50.
+        instance:
+          type: string
+          format: uri-reference
+          description: A URI reference identifying this specific occurrence of the problem.
+          example: /account/12345/msgs/abc
+
+  headers:
+
+    ETag:
+      description: >-
+        An opaque validator for the current state of the resource. Send it back in
+        `If-Match` on a write to avoid clobbering a concurrent update. RFC 9110
+        Section 8.8.3.
+      schema:
+        type: string
+        example: '"a1b2c3"'
+
+    RateLimit:
+      description: >-
+        Remaining quota and the reset interval for the current policy, per the IETF
+        RateLimit header fields draft.
+      schema:
+        type: string
+        example: 'limit=100, remaining=94, reset=50'
+
+    WWW-Authenticate:
+      description: >-
+        The authentication scheme and parameters applicable to the target
+        resource. RFC 9110 Section 11.6.1 requires a 401 to carry at least one
+        challenge; a problem detail explaining the 401 does not substitute for it.
+      schema:
+        type: string
+        example: 'Bearer realm="example", error="invalid_token"'
+
+    Retry-After:
+      description: >-
+        How long the client should wait before retrying, in seconds or as an
+        HTTP-date. RFC 9110 Section 10.2.3.
+      schema:
+        type: string
+        example: '120'
+
+  responses:
+
+    BadRequest:
+      description: Bad Request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/bad-request
+            title: Bad Request
+            status: 400
+            detail: The request body is invalid or a required field is missing.
+            instance: /requests/01HZ
+
+    Unauthorized:
+      description: Unauthorized
+      headers:
+        WWW-Authenticate:
+          $ref: '#/components/headers/WWW-Authenticate'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/unauthorized
+            title: Unauthorized
+            status: 401
+            detail: The access token is missing, malformed, or expired.
+            instance: /requests/01HZ
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/forbidden
+            title: Forbidden
+            status: 403
+            detail: The credential is valid but lacks the scope for this operation.
+            instance: /requests/01HZ
+
+    NotFound:
+      description: Not Found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/not-found
+            title: Not Found
+            status: 404
+            detail: No resource exists with that identifier.
+            instance: /requests/01HZ
+
+    Conflict:
+      description: Conflict
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/conflict
+            title: Conflict
+            status: 409
+            detail: The resource has changed since you last read it.
+            instance: /requests/01HZ
+
+    UnprocessableContent:
+      description: Unprocessable Content
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/unprocessable-content
+            title: Unprocessable Content
+            status: 422
+            detail: The request was well-formed but failed a business rule.
+            instance: /requests/01HZ
+
+    PreconditionFailed:
+      description: Precondition Failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/precondition-failed
+            title: Precondition Failed
+            status: 412
+            detail: The resource changed since you read it. Re-read it and retry.
+            instance: /requests/01HZ
+
+    UnsupportedMediaType:
+      description: Unsupported Media Type
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/unsupported-media-type
+            title: Unsupported Media Type
+            status: 415
+            detail: This operation expects application/merge-patch+json.
+            instance: /requests/01HZ
+
+    TooManyRequests:
+      description: Too Many Requests
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/too-many-requests
+            title: Too Many Requests
+            status: 429
+            detail: You have exceeded the rate limit for this endpoint.
+            instance: /requests/01HZ
+
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://example.com/errors/internal-server-error
+            title: Internal Server Error
+            status: 500
+            detail: The request could not be completed. Retry, then contact support.
+            instance: /requests/01HZ
